@@ -1,0 +1,13 @@
+MAKEFILE
+Makefile
+file_folder
+*.log
+*.class
+Singleton.java
+*~
+.idea
+file_folder1
+file_folder5
+file_folder4
+file_folder3
+file_folder2
