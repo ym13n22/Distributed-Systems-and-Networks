@@ -1,93 +1,175 @@
-# complement2207new
+This project implements a simplified Distributed File System in Java, consisting of:
+
+A Controller that manages Dstore nodes, handles client requests, maintains file metadata (index), and coordinates rebalancing.
+
+Multiple Dstores that store replicated file data and respond to file operations.
+
+A Client (provided) that sends store, load, list, and remove requests to the Controller.
+
+All communication occurs over TCP sockets, and the system handles concurrency, failure, and rebalance logic.
+
+🔧 Controller - Responsibilities & Functions
+Dstore Join Management
+
+Accepts JOIN <port> messages from Dstores.
+
+Tracks connected Dstores.
+
+Waits until at least R Dstores have joined before accepting client operations.
+
+File Index Management
+
+Maintains metadata for all files (including size, status, and which Dstores hold them).
+
+Handles file states: store in progress, store complete, remove in progress.
+
+Client Request Handling
+
+STORE filename filesize → selects R Dstores and replies with STORE_TO.
+
+LOAD filename → replies with LOAD_FROM (a Dstore and file size).
+
+REMOVE filename → notifies all Dstores storing the file.
+
+LIST → replies with list of all stored (complete) filenames.
+
+Receiving Messages from Dstores
+
+Handles STORE_ACK, REMOVE_ACK, REBALANCE_COMPLETE, and errors.
+
+Monitors file replication and removal progress.
+
+Failure Handling
+
+Detects unresponsive Dstores via timeouts and removes them.
+
+Abandons operations that don’t complete in time.
+
+Does not attempt to reconnect to failed Dstores.
+
+Rebalancing
+
+Initiated via command-line or automatically.
+
+Collects file lists from all Dstores.
+
+Determines send/delete plan to ensure:
+
+Each file is replicated to R Dstores.
+
+File distribution is balanced across Dstores.
+
+Sends REBALANCE commands with instructions.
+
+Waits for REBALANCE_COMPLETE.
+
+💾 Dstore - Responsibilities & Functions
+Joining the Controller
+
+Sends JOIN <port> on startup.
+
+Maintains a persistent connection with the Controller.
+
+Client Interactions
+
+Handles STORE filename filesize → receives and stores the file.
+
+Handles LOAD_DATA filename → sends file content to client.
+
+Controller Interactions
+
+REMOVE filename → deletes the file and sends REMOVE_ACK.
+
+LIST → replies with list of locally stored filenames.
+
+REBALANCE → receives:
+
+Files to send to other Dstores via REBALANCE_STORE.
+
+Files to delete locally.
+
+Sends REBALANCE_COMPLETE upon finishing.
+
+Local File Management
+
+Uses a clean storage folder on startup.
+
+Stores files under unique directory per instance (port-based).
+
+Failure Handling
+
+Does not reconnect to Controller if disconnected.
+
+Will be removed from the system by Controller if unresponsive.
+
+👤 Client - Overview (already implemented)
+Controller Communication
+
+Sends STORE, LOAD, REMOVE, and LIST commands.
+
+Interprets Controller’s responses to proceed.
+
+Dstore Communication
+
+Uploads file content to selected Dstores.
+
+Downloads file from one Dstore.
+
+Retries with RELOAD on read failures.
+
+Compilation
+This project is written in standard Java 21 (openjdk-21-jdk) with no dependencies or packages.
+
+To compile all .java files:
+
+javac *.java
+Running the System
+You must run each component from the command line in separate terminals (all on the same machine).
+
+1. Start the Controller
+
+java Controller <cport> <R> <timeout> <rebalance_period>
+cport: Port Controller listens on (e.g., 12345)
+
+R: Replication factor (e.g., 2 or 3)
+
+timeout: Timeout in milliseconds (e.g., 1000)
+
+rebalance_period: Seconds between automatic rebalances (e.g., 30)
+
+Example:
+
+java Controller 12345 2 1000 30
+2. Start the Dstores
+You must start at least R Dstores. Use different ports and folders for each.
 
 
+java Dstore <port> <cport> <timeout> <file_folder>
+port: Port the Dstore listens on (e.g., 2001)
 
-## Getting started
+cport: Controller’s port (must match the Controller's cport)
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+timeout: Timeout in milliseconds
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+file_folder: Path to store files (must exist and be different per Dstore)
 
-## Add your files
+Example:
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
 
-```
-cd existing_repo
-git remote add origin https://git.soton.ac.uk/ym13n22/complement2207new.git
-git branch -M main
-git push -uf origin main
-```
+java Dstore 2001 12345 1000 dstore1_folder
+3. Start the Client
+The client is provided as a JAR file (client.jar) and communicates with the Controller.
 
-## Integrate with your tools
 
-- [ ] [Set up project integrations](https://git.soton.ac.uk/ym13n22/complement2207new/-/settings/integrations)
+java -jar client.jar <cport> <timeout>
+Example:
 
-## Collaborate with your team
+java -jar client.jar 12345 1000
+File Structure Requirements
+No Java packages used.
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+All .java files must be in the same directory.
 
-## Test and Deploy
+Dstore data folders must already exist before starting Dstores.
 
-Use the built-in continuous integration in GitLab.
-
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+The system assumes that files are less than 100KB and not empty.
