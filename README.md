@@ -67,12 +67,15 @@ This project is written in standard Java 21 (openjdk-21-jdk) with no dependencie
 To compile all .java files:
 
 javac *.java
+
 Running the System
+
 You must run each component from the command line in separate terminals (all on the same machine).
 
 1. Start the Controller
 
 java Controller <cport> <R> <timeout> <rebalance_period>
+
 cport: Port Controller listens on (e.g., 12345)
 
 R: Replication factor (e.g., 2 or 3)
@@ -84,11 +87,15 @@ rebalance_period: Seconds between automatic rebalances (e.g., 30)
 Example:
 
 java Controller 12345 2 1000 30
+
+
 2. Start the Dstores
+
 You must start at least R Dstores. Use different ports and folders for each.
 
 
 java Dstore <port> <cport> <timeout> <file_folder>
+
 port: Port the Dstore listens on (e.g., 2001)
 
 cport: Controller’s port (must match the Controller's cport)
@@ -100,15 +107,20 @@ file_folder: Path to store files (must exist and be different per Dstore)
 Example:
 
 java Dstore 2001 12345 1000 dstore1_folder
+
 3. Start the Client
+
 The client is provided as a JAR file (client.jar) and communicates with the Controller.
 
 
 java -jar client.jar <cport> <timeout>
+
 Example:
 
 java -jar client.jar 12345 1000
+
 File Structure Requirements
+
 No Java packages used.
 
 All .java files must be in the same directory.
