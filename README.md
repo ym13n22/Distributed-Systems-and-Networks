@@ -8,112 +8,55 @@ A Client (provided) that sends store, load, list, and remove requests to the Con
 
 All communication occurs over TCP sockets, and the system handles concurrency, failure, and rebalance logic.
 
-🔧 Controller - Responsibilities & Functions
-Dstore Join Management
+🔧 Controller – Key Responsibilities
 
-Accepts JOIN <port> messages from Dstores.
+Dstore Management: Accepts JOIN requests and tracks connected Dstores. Waits for at least R Dstores before allowing client operations.
 
-Tracks connected Dstores.
+File Metadata: Maintains file info (size, status, Dstore locations). Tracks states like store in progress or store complete.
 
-Waits until at least R Dstores have joined before accepting client operations.
+Client Requests:
 
-File Index Management
+STORE: Selects R Dstores and replies with STORE_TO.
 
-Maintains metadata for all files (including size, status, and which Dstores hold them).
+LOAD: Replies with LOAD_FROM.
 
-Handles file states: store in progress, store complete, remove in progress.
+REMOVE: Sends delete commands to Dstores.
 
-Client Request Handling
+LIST: Returns list of completed files.
 
-STORE filename filesize → selects R Dstores and replies with STORE_TO.
+Dstore Communication: Handles STORE_ACK, REMOVE_ACK, REBALANCE_COMPLETE, and error signals.
 
-LOAD filename → replies with LOAD_FROM (a Dstore and file size).
+Failure Handling: Removes unresponsive Dstores and aborts incomplete operations.
 
-REMOVE filename → notifies all Dstores storing the file.
+Rebalancing: Ensures each file is stored on R Dstores and balances load. Sends REBALANCE instructions and waits for completion.
 
-LIST → replies with list of all stored (complete) filenames.
+💾 Dstore – Key Responsibilities
 
-Receiving Messages from Dstores
+Controller Join: Sends JOIN <port> on startup and maintains the connection.
 
-Handles STORE_ACK, REMOVE_ACK, REBALANCE_COMPLETE, and errors.
+Client Operations:
 
-Monitors file replication and removal progress.
+STORE: Receives and stores files.
 
-Failure Handling
+LOAD_DATA: Sends file content to client.
 
-Detects unresponsive Dstores via timeouts and removes them.
+Controller Commands:
 
-Abandons operations that don’t complete in time.
+REMOVE: Deletes file, replies with REMOVE_ACK.
 
-Does not attempt to reconnect to failed Dstores.
+LIST: Returns list of stored files.
 
-Rebalancing
+REBALANCE: Sends specified files to other Dstores, deletes files, then replies REBALANCE_COMPLETE.
 
-Initiated via command-line or automatically.
+Storage: Uses a clean, port-based directory.
 
-Collects file lists from all Dstores.
+Failure: Does not reconnect if disconnected; will be removed by the Controller.
 
-Determines send/delete plan to ensure:
+👤 Client – Summary
 
-Each file is replicated to R Dstores.
+Communicates with Controller using STORE, LOAD, REMOVE, and LIST.
 
-File distribution is balanced across Dstores.
-
-Sends REBALANCE commands with instructions.
-
-Waits for REBALANCE_COMPLETE.
-
-💾 Dstore - Responsibilities & Functions
-Joining the Controller
-
-Sends JOIN <port> on startup.
-
-Maintains a persistent connection with the Controller.
-
-Client Interactions
-
-Handles STORE filename filesize → receives and stores the file.
-
-Handles LOAD_DATA filename → sends file content to client.
-
-Controller Interactions
-
-REMOVE filename → deletes the file and sends REMOVE_ACK.
-
-LIST → replies with list of locally stored filenames.
-
-REBALANCE → receives:
-
-Files to send to other Dstores via REBALANCE_STORE.
-
-Files to delete locally.
-
-Sends REBALANCE_COMPLETE upon finishing.
-
-Local File Management
-
-Uses a clean storage folder on startup.
-
-Stores files under unique directory per instance (port-based).
-
-Failure Handling
-
-Does not reconnect to Controller if disconnected.
-
-Will be removed from the system by Controller if unresponsive.
-
-👤 Client - Overview (already implemented)
-Controller Communication
-
-Sends STORE, LOAD, REMOVE, and LIST commands.
-
-Interprets Controller’s responses to proceed.
-
-Dstore Communication
-
-Uploads file content to selected Dstores.
-
-Downloads file from one Dstore.
+Uploads and downloads files from Dstores.
 
 Retries with RELOAD on read failures.
 
@@ -154,7 +97,6 @@ timeout: Timeout in milliseconds
 file_folder: Path to store files (must exist and be different per Dstore)
 
 Example:
-
 
 java Dstore 2001 12345 1000 dstore1_folder
 3. Start the Client
